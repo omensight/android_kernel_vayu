@@ -14,6 +14,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/notifier.h>
 
 #define ICNSS_MAX_IRQ_REGISTRATIONS    12
 #define ICNSS_MAX_TIMESTAMP_LEN        32
@@ -143,6 +144,8 @@ extern int icnss_smmu_map(struct device *dev, phys_addr_t paddr,
 extern unsigned int icnss_socinfo_get_serial_number(struct device *dev);
 extern bool icnss_is_qmi_disable(struct device *dev);
 extern bool icnss_is_fw_ready(void);
+extern int icnss_register_fw_ready_notifier(struct notifier_block *nb);
+extern int icnss_unregister_fw_ready_notifier(struct notifier_block *nb);
 extern bool icnss_is_fw_down(void);
 extern bool icnss_is_rejuvenate(void);
 extern int icnss_trigger_recovery(struct device *dev);

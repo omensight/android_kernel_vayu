@@ -60,6 +60,8 @@
 #define NUM_LOG_LONG_PAGES		4
 #define ICNSS_MAGIC			0x5abc5abc
 
+static BLOCKING_NOTIFIER_HEAD(icnss_fw_ready_notifier);
+
 #define ICNSS_SERVICE_LOCATION_CLIENT_NAME			"ICNSS-WLAN"
 #define ICNSS_WLAN_SERVICE_NAME					"wlan/fw"
 #define ICNSS_THRESHOLD_HIGH		3600000
@@ -630,6 +632,18 @@ bool icnss_is_fw_ready(void)
 		return test_bit(ICNSS_FW_READY, &penv->state);
 }
 EXPORT_SYMBOL(icnss_is_fw_ready);
+
+int icnss_register_fw_ready_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&icnss_fw_ready_notifier, nb);
+}
+EXPORT_SYMBOL(icnss_register_fw_ready_notifier);
+
+int icnss_unregister_fw_ready_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&icnss_fw_ready_notifier, nb);
+}
+EXPORT_SYMBOL(icnss_unregister_fw_ready_notifier);
 
 void icnss_block_shutdown(bool status)
 {
@@ -1216,6 +1230,7 @@ static int icnss_driver_event_fw_ready_ind(void *data)
 		complete(&penv->notif_complete);
 
 	icnss_pr_info("WLAN FW is ready: 0x%lx\n", penv->state);
+	blocking_notifier_call_chain(&icnss_fw_ready_notifier, 0, penv);
 
 	icnss_hw_power_off(penv);
 
@@ -2489,7 +2504,7 @@ EXPORT_SYMBOL(icnss_get_irq);
 
 struct dma_iommu_mapping *icnss_smmu_get_mapping(struct device *dev)
 {
-	struct icnss_priv *priv = dev_get_drvdata(dev);
+	struct icnss_priv *priv = dev ? dev_get_drvdata(dev) : penv;
 
 	if (!priv) {
 		icnss_pr_err("Invalid drvdata: dev %pK, data %pK\n",
@@ -2717,10 +2732,13 @@ static int icnss_smmu_init(struct icnss_priv *priv)
 		icnss_pr_dbg("SMMU NON FATAL map set\n");
 	}
 
-	ret = arm_iommu_attach_device(&priv->pdev->dev, mapping);
-	if (ret < 0) {
-		icnss_pr_err("Attach device failed, err = %d\n", ret);
-		goto attach_fail;
+	if (priv->pdev->dev.iommu_group) {
+		ret = arm_iommu_attach_device(&priv->pdev->dev, mapping);
+		if (ret < 0) {
+			icnss_pr_err("Attach device failed, err = %d\n", ret);
+			goto attach_fail;
+		}
+		priv->smmu_mapping_attached = true;
 	}
 
 	priv->smmu_mapping = mapping;
@@ -2740,10 +2758,12 @@ static void icnss_smmu_deinit(struct icnss_priv *priv)
 	if (!priv->smmu_mapping)
 		return;
 
-	arm_iommu_detach_device(&priv->pdev->dev);
+	if (priv->smmu_mapping_attached)
+		arm_iommu_detach_device(&priv->pdev->dev);
 	arm_iommu_release_mapping(priv->smmu_mapping);
 
 	priv->smmu_mapping = NULL;
+	priv->smmu_mapping_attached = false;
 }
 
 static int icnss_get_vreg_info(struct device *dev,

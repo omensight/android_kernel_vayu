@@ -19,7 +19,6 @@
 
 #include "hw.h"
 #include "ce.h"
-#include "qmi.h"
 
 struct ath10k_snoc_drv_priv {
 	enum ath10k_hw_rev hw_rev;
@@ -79,12 +78,13 @@ struct ath10k_snoc {
 	size_t mem_len;
 	struct ath10k_snoc_pipe pipe_info[CE_COUNT_MAX];
 	struct ath10k_snoc_ce_irq ce_irqs[CE_COUNT_MAX];
+	bool ce_irq_requested[CE_COUNT_MAX];
 	struct ath10k_ce ce;
 	struct timer_list rx_post_retry;
 	struct ath10k_wcn3990_vreg_info *vreg;
 	struct ath10k_wcn3990_clk_info *clk;
-	struct ath10k_qmi *qmi;
 	struct dma_iommu_mapping *smmu_mapping;
+	bool smmu_mapping_owned;
 	dma_addr_t smmu_iova_start;
 	size_t smmu_iova_len;
 };

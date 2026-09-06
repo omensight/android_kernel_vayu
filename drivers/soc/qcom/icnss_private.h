@@ -318,6 +318,7 @@ struct icnss_priv {
 	phys_addr_t mem_base_pa;
 	void __iomem *mem_base_va;
 	struct dma_iommu_mapping *smmu_mapping;
+	bool smmu_mapping_attached;
 	dma_addr_t smmu_iova_start;
 	size_t smmu_iova_len;
 	dma_addr_t smmu_iova_ipa_start;
@@ -394,4 +395,3 @@ int icnss_call_driver_uevent(struct icnss_priv *priv,
 int icnss_driver_event_post(enum icnss_driver_event_type type,
 				   u32 flags, void *data);
 #endif
-
